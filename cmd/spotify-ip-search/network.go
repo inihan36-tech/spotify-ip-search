@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/tls"
+	"encoding/base64"
 	"encoding/binary"
 	"encoding/json"
 	"errors"
@@ -152,9 +153,10 @@ type pair struct{ ip, domain string }
 
 type probeResult struct {
 	pair
-	ok      bool
-	reason  string
-	elapsed time.Duration
+	ok       bool
+	timedOut bool
+	reason   string
+	elapsed  time.Duration
 }
 
 func probe(candidate pair, sourceIP string, timeout time.Duration, retry bool) probeResult {
@@ -167,14 +169,15 @@ func probe(candidate pair, sourceIP string, timeout time.Duration, retry bool) p
 			res, err = request(address, candidate.ip, sourceIP, timeout, 4_000_000, "")
 		}
 		if err != nil {
-			return probeResult{pair: candidate, reason: err.Error()}
+			return probeResult{pair: candidate, reason: err.Error(), timedOut: isTimeout(err)}
 		}
 		if redirected(res.status) && res.location != nil && res.location.Scheme == "https" &&
 			res.location.User == nil && strings.EqualFold(res.location.Host, candidate.domain) {
 			address = res.location.String()
 			continue
 		}
-		return probeResult{candidate, validSpotifyResponse(candidate.domain, res), fmt.Sprintf("HTTP %d", res.status), time.Since(start)}
+		return probeResult{pair: candidate, ok: validSpotifyResponse(candidate.domain, res),
+			reason: fmt.Sprintf("HTTP %d", res.status), elapsed: time.Since(start)}
 	}
 	return probeResult{pair: candidate, reason: "слишком много перенаправлений"}
 }
@@ -193,11 +196,7 @@ func smartDNS(domain, sourceIP string) ([]string, error) {
 
 func queryTLS(domain, server, sourceIP string) ([]string, error) {
 	const timeout = 4 * time.Second
-	name := dnsmessage.MustNewName(domain + ".")
-	message := dnsmessage.Message{
-		Header:    dnsmessage.Header{ID: 0x5350, RecursionDesired: true},
-		Questions: []dnsmessage.Question{{Name: name, Type: dnsmessage.TypeA, Class: dnsmessage.ClassINET}},
-	}
+	message := dnsQuery(domain, 0x5350)
 	query, err := message.Pack()
 	if err != nil {
 		return nil, err
@@ -224,12 +223,25 @@ func queryTLS(domain, server, sourceIP string) ([]string, error) {
 	if _, err := io.ReadFull(connection, answer); err != nil {
 		return nil, err
 	}
+	return dnsReply(message, answer)
+}
+
+func dnsQuery(domain string, id uint16) dnsmessage.Message {
+	return dnsmessage.Message{
+		Header: dnsmessage.Header{ID: id, RecursionDesired: true},
+		Questions: []dnsmessage.Question{{Name: dnsmessage.MustNewName(domain + "."),
+			Type: dnsmessage.TypeA, Class: dnsmessage.ClassINET}},
+	}
+}
+
+func dnsReply(message dnsmessage.Message, answer []byte) ([]string, error) {
 	var reply dnsmessage.Message
 	if err := reply.Unpack(answer); err != nil {
 		return nil, err
 	}
 	if reply.ID != message.ID || !reply.Response || reply.Truncated || reply.RCode != dnsmessage.RCodeSuccess ||
-		len(reply.Questions) != 1 || !strings.EqualFold(reply.Questions[0].Name.String(), name.String()) {
+		len(reply.Questions) != 1 || reply.Questions[0].Type != dnsmessage.TypeA || reply.Questions[0].Class != dnsmessage.ClassINET ||
+		!strings.EqualFold(reply.Questions[0].Name.String(), message.Questions[0].Name.String()) {
 		return nil, errors.New("неожиданный ответ DNS")
 	}
 	var addresses []string
@@ -239,6 +251,23 @@ func queryTLS(domain, server, sourceIP string) ([]string, error) {
 		}
 	}
 	return addresses, nil
+}
+
+func queryWireDoH(domain, sourceIP string, endpoint [2]string) ([]string, error) {
+	message := dnsQuery(domain, 0)
+	query, err := message.Pack()
+	if err != nil {
+		return nil, err
+	}
+	res, err := request(endpoint[0]+"?dns="+base64.RawURLEncoding.EncodeToString(query), endpoint[1], sourceIP,
+		3*time.Second, 64_000, "application/dns-message")
+	if err != nil {
+		return nil, err
+	}
+	if res.status != http.StatusOK {
+		return nil, fmt.Errorf("DNS: HTTP %d", res.status)
+	}
+	return dnsReply(message, res.body)
 }
 
 func queryDoH(domain, sourceIP string, endpoint [2]string) ([]string, error) {

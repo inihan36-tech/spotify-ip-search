@@ -15,7 +15,7 @@ import (
 )
 
 const (
-	version          = "1.1.1"
+	version          = "1.1.2"
 	minApplyDomains  = 9
 	latestReleaseAPI = "https://api.github.com/repos/inihan36-tech/spotify-ip-search/releases/latest"
 	latestReleaseURL = "https://github.com/inihan36-tech/spotify-ip-search/releases/latest"
@@ -26,8 +26,10 @@ type configuration struct {
 	TargetOrder []string
 	Core        []string
 	Published   []string
+	ReserveDNS  map[string][]string
 	SmartDNS    []string
 	DoH         map[string][2]string
+	WireDoH     map[string][2]string
 	HostLists   map[string]string
 	Discussions map[string]string
 }
@@ -102,6 +104,20 @@ func (options searchOptions) chooseRoute() (string, error) {
 }
 
 func (options searchOptions) find(dnsOnly bool) results {
+	type discovery struct {
+		addresses   []string
+		unavailable int
+	}
+	var hosts, discussions chan discovery
+	if !dnsOnly {
+		hosts, discussions = make(chan discovery, 1), make(chan discovery, 1)
+		fetch := func(output chan<- discovery, sources map[string]string, parse func(string) []string) {
+			addresses, unavailable := options.onlineCandidates(sources, parse)
+			output <- discovery{addresses, unavailable}
+		}
+		go fetch(hosts, config.HostLists, listedHostsIPs)
+		go fetch(discussions, config.Discussions, discussionIPs)
+	}
 	checked := results{}
 	fmt.Println("Поиск     · DNS…")
 	found := options.dnsCandidates()
@@ -111,21 +127,28 @@ func (options searchOptions) find(dnsOnly bool) results {
 		return checked
 	}
 
-	fmt.Printf("Проверка  · резервный список: %d IP\n", len(config.Published))
-	options.addPublished(config.Published, checked)
+	reserve := options.publishedCandidates(config.Published)
+	for domain, addresses := range config.ReserveDNS {
+		for _, address := range addresses {
+			if ip := publicIP(address); ip != "" && !options.excluded[ip] {
+				if reserve[ip] == nil {
+					reserve[ip] = map[string]bool{}
+				}
+				reserve[ip][domain] = true
+			}
+		}
+	}
+	fmt.Printf("Проверка  · резервный список: %d IP\n", len(reserve))
+	options.scan(reserve, checked)
 	if options.confirm(checked) {
 		return checked
 	}
 
-	fmt.Println("Поиск     · открытые списки…")
-	addresses, unavailable := options.onlineCandidates(config.HostLists, listedHostsIPs)
-	options.addPublished(addresses, checked)
-	if !options.confirm(checked) {
-		addresses, failures := options.onlineCandidates(config.Discussions, discussionIPs)
-		unavailable += failures
-		options.addPublished(addresses, checked)
-		options.confirm(checked)
-	}
+	fmt.Println("Проверка  · адреса из открытых списков…")
+	hostList, threads := <-hosts, <-discussions
+	options.scan(options.publishedCandidates(append(hostList.addresses, threads.addresses...)), checked)
+	options.confirm(checked)
+	unavailable := hostList.unavailable + threads.unavailable
 	if unavailable > 0 {
 		fmt.Printf("Источники · недоступно: %d\n", unavailable)
 	}

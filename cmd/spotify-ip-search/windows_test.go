@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"golang.org/x/net/dns/dnsmessage"
 )
 
 func TestWriteHostsPreservesUnrelatedEntries(t *testing.T) {
@@ -31,6 +33,31 @@ func TestWriteHostsPreservesUnrelatedEntries(t *testing.T) {
 	entries, err := os.ReadDir(directory)
 	if err != nil || len(entries) != 1 {
 		t.Fatalf("unexpected extra files: %v (%v)", entries, err)
+	}
+}
+
+func TestDNSReplyMatchesQuery(t *testing.T) {
+	query := dnsQuery("open.spotify.com", 7)
+	reply := dnsQuery("open.spotify.com", 7)
+	reply.Response = true
+	reply.Answers = []dnsmessage.Resource{{
+		Header: dnsmessage.ResourceHeader{Name: reply.Questions[0].Name, Class: dnsmessage.ClassINET},
+		Body:   &dnsmessage.AResource{A: [4]byte{151, 101, 3, 42}},
+	}}
+	encode := func() []byte {
+		t.Helper()
+		data, err := reply.Pack()
+		if err != nil {
+			t.Fatal(err)
+		}
+		return data
+	}
+	if addresses, err := dnsReply(query, encode()); err != nil || strings.Join(addresses, ",") != "151.101.3.42" {
+		t.Fatalf("unexpected answer %v (%v)", addresses, err)
+	}
+	reply.Questions[0].Name = dnsmessage.MustNewName("example.test.")
+	if _, err := dnsReply(query, encode()); err == nil {
+		t.Fatal("accepted an answer to an unrelated question")
 	}
 }
 

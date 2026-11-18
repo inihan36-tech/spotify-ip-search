@@ -12,7 +12,7 @@ import (
 	"time"
 )
 
-const workers, maxSourceIPs = 10, 128
+const workers, maxSourceIPs = 16, 128
 
 type candidates map[string]map[string]bool
 type results map[pair]probeResult
@@ -70,6 +70,11 @@ func (options searchOptions) dnsCandidates() candidates {
 				return queryDoH(domain, options.sourceIP, endpoint)
 			}, true})
 		}
+		for name, endpoint := range config.WireDoH {
+			jobs = append(jobs, dnsJob{domain, name, func(domain string) ([]string, error) {
+				return queryWireDoH(domain, options.sourceIP, endpoint)
+			}, true})
+		}
 	}
 	type answer struct {
 		addresses []string
@@ -122,17 +127,24 @@ func (options searchOptions) check(jobs []pair, retry bool) []probeResult {
 }
 
 func (options searchOptions) scan(found candidates, checked results) {
-	var coreJobs []pair
+	var firstJobs []pair
 	for ip, domains := range found {
-		for _, domain := range config.Core {
+		for domain := range domains {
+			if len(domains) == len(targetDomains) && !slices.Contains(config.Core, domain) {
+				continue
+			}
 			candidate := pair{ip, domain}
-			if _, exists := checked[candidate]; domains[domain] && !exists {
-				coreJobs = append(coreJobs, candidate)
+			if _, exists := checked[candidate]; !exists {
+				firstJobs = append(firstJobs, candidate)
 			}
 		}
 	}
-	for _, check := range options.check(coreJobs, true) {
+	var coreTimeouts []pair
+	for _, check := range options.check(firstJobs, false) {
 		checked[check.pair] = check
+		if check.timedOut {
+			coreTimeouts = append(coreTimeouts, check.pair)
+		}
 	}
 	responsive := map[string]bool{}
 	for candidate, check := range checked {
@@ -141,6 +153,11 @@ func (options searchOptions) scan(found candidates, checked results) {
 		}
 	}
 	var remaining []pair
+	for _, candidate := range coreTimeouts {
+		if responsive[candidate.ip] {
+			remaining = append(remaining, candidate)
+		}
+	}
 	for ip := range found {
 		if !responsive[ip] {
 			continue
@@ -220,7 +237,7 @@ func allPairs(ip string) []pair {
 	return jobs
 }
 
-func (options searchOptions) addPublished(addresses []string, checked results) {
+func (options searchOptions) publishedCandidates(addresses []string) candidates {
 	allDomains := map[string]bool{}
 	for domain := range config.Targets {
 		allDomains[domain] = true
@@ -231,7 +248,7 @@ func (options searchOptions) addPublished(addresses []string, checked results) {
 			found[ip] = allDomains
 		}
 	}
-	options.scan(found, checked)
+	return found
 }
 
 func listedHostsIPs(page string) []string {
