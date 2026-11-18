@@ -12,7 +12,7 @@ import (
 	"time"
 )
 
-const workers, maxSourceIPs = 10, 32
+const workers, maxSourceIPs = 10, 128
 
 type candidates map[string]map[string]bool
 type results map[pair]probeResult

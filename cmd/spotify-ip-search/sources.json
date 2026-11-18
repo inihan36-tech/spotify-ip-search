@@ -58,7 +58,27 @@
     "185.87.51.182",
     "142.54.189.109",
     "63.141.252.206",
-    "46.8.158.6"
+    "46.8.158.6",
+    "2.21.72.200",
+    "23.44.131.154",
+    "23.44.136.84",
+    "35.186.224.24",
+    "35.186.224.26",
+    "35.186.224.33",
+    "45.95.233.23",
+    "45.144.176.208",
+    "84.21.189.133",
+    "89.169.39.185",
+    "144.31.14.104",
+    "151.101.3.42",
+    "151.101.122.250",
+    "151.101.123.42",
+    "151.101.130.250",
+    "151.101.195.42",
+    "193.23.209.189",
+    "199.232.210.250",
+    "199.232.214.250",
+    "204.12.192.221"
   ],
   "hostLists": {
     "GeoHide EU": "https://raw.githubusercontent.com/Internet-Helper/GeoHideDNS/main/hosts/eu/hosts",
@@ -68,11 +88,17 @@
     "Zapret-Manager EU": "https://raw.githubusercontent.com/StressOzz/Zapret-Manager/main/files/GeoHide_hosts_EU",
     "Zapret-Manager RU": "https://raw.githubusercontent.com/StressOzz/Zapret-Manager/main/files/GeoHide_hosts_RU",
     "Zapret-Manager US": "https://raw.githubusercontent.com/StressOzz/Zapret-Manager/main/files/GeoHide_hosts_US",
-    "Zapret-Manager Malw": "https://raw.githubusercontent.com/StressOzz/Zapret-Manager/main/files/hosts_malw.link.txt"
+    "Zapret-Manager Malw": "https://raw.githubusercontent.com/StressOzz/Zapret-Manager/main/files/hosts_malw.link.txt",
+    "Mafioznik hosts": "https://raw.githubusercontent.com/StressOzz/Zapret-Manager/main/files/hosts_mafioznik.txt"
   },
   "discussions": {
     "GitHub #5552": "https://github.com/Flowseal/zapret-discord-youtube/discussions/5552",
-    "GitHub #12444": "https://github.com/Flowseal/zapret-discord-youtube/discussions/12444"
+    "GitHub #12444": "https://github.com/Flowseal/zapret-discord-youtube/discussions/12444",
+    "GitHub #4401": "https://github.com/Flowseal/zapret-discord-youtube/discussions/4401",
+    "GitHub #10892": "https://github.com/Flowseal/zapret-discord-youtube/discussions/10892",
+    "GitHub #15510": "https://github.com/Flowseal/zapret-discord-youtube/discussions/15510",
+    "GitHub issue #817": "https://github.com/Flowseal/zapret-discord-youtube/issues/817",
+    "V3nilla #63": "https://github.com/V3nilla/IPSets-For-Bypass-in-Russia/issues/63"
   },
   "smartDNS": [
     "179.254.166.171",

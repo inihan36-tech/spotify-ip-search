@@ -54,8 +54,15 @@ func TestOnlyWebCacheIsRemoved(t *testing.T) {
 }
 
 func TestSourcesAndServiceResponses(t *testing.T) {
-	if len(targetDomains) != 17 || len(config.Published) != 34 {
+	if len(targetDomains) != 17 || len(config.Published) <= 34 {
 		t.Fatal("incomplete built-in sources")
+	}
+	seen := make(map[string]bool)
+	for _, ip := range config.Published {
+		if publicIP(ip) != ip || seen[ip] {
+			t.Fatalf("invalid or duplicate candidate %q", ip)
+		}
+		seen[ip] = true
 	}
 	if got := listedHostsIPs("127.0.0.1 open.spotify.com\n48.102.233.174 open.spotify.com\n8.8.8.8 unlisted.test"); strings.Join(got, ",") != "48.102.233.174" {
 		t.Fatal(got)

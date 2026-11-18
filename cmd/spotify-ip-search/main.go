@@ -15,7 +15,7 @@ import (
 )
 
 const (
-	version          = "1.1.0"
+	version          = "1.1.1"
 	minApplyDomains  = 9
 	latestReleaseAPI = "https://api.github.com/repos/inihan36-tech/spotify-ip-search/releases/latest"
 	latestReleaseURL = "https://github.com/inihan36-tech/spotify-ip-search/releases/latest"
