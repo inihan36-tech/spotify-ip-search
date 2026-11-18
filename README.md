@@ -1,13 +1,13 @@
 # Spotify IP Search
 
-Скрипт для Windows ищет IPv4 для доменов Spotify и проверяет доступ по HTTPS.
+Программа для Windows x64 ищет IPv4 для доменов Spotify и проверяет доступ по HTTPS.
 
-1. Скачайте `spotify-ip-search-windows.zip` из [Releases](https://github.com/inihan36-tech/spotify-ip-search/releases/latest) и полностью распакуйте архив.
-2. Запустите `start_spotify_search.cmd` и подтвердите запрос Windows на права администратора.
-3. Если IP прошёл минимум 9 из 17 проверок, скрипт обновит `hosts`, очистит веб-кэш Spotify и сбросит кэш DNS. Затем перезапустите Spotify.
+1. Скачайте `SpotifyIpSearch.exe` из [Releases](https://github.com/inihan36-tech/spotify-ip-search/releases/latest) и запустите двойным щелчком.
+2. Если IP пройдёт хотя бы 9 из 17 проверок, подтвердите запрос Windows. Программа обновит `hosts`, очистит веб-кэш Spotify и сбросит кэш DNS.
+3. Перезапустите Spotify.
 
-Нужны Python 3.9+ с командой `py`, `curl` 7.84+ и Windows PowerShell.
+Для EXE ничего дополнительно устанавливать не нужно. Чтобы только проверить адреса, запустите `SpotifyIpSearch.exe --preview` в командной строке. Для подробностей добавьте `--verbose`.
 
-Чтобы только проверить адреса и увидеть готовые строки для `hosts`, запустите в папке со скриптом `py -3 find_spotify_ip.py`. Добавьте `--verbose` для подробного вывода.
+Когда на GitHub появится новая версия, программа покажет ссылку на неё в конце запуска.
 
-Когда на GitHub появится новая версия, скрипт покажет ссылку на неё в конце запуска.
+[Версия на Python](https://github.com/inihan36-tech/spotify-ip-search/releases/tag/v1.0.0) · [Лицензии компонентов EXE](cmd/spotify-ip-search/third-party-notices.txt)

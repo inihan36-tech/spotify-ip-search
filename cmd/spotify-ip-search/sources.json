@@ -1,0 +1,110 @@
+{
+  "targets": {
+    "spotify.com": "/",
+    "www.spotify.com": "/",
+    "api.spotify.com": "/v1/me",
+    "login5.spotify.com": "/",
+    "encore.scdn.co": "/",
+    "gew1-spclient.spotify.com": "/metadata/4/track/3n3Ppam7vgaVa1iaRUc9Lp",
+    "spclient.wg.spotify.com": "/metadata/4/track/3n3Ppam7vgaVa1iaRUc9Lp",
+    "api-partner.spotify.com": "/pathfinder/v1/query",
+    "aet.spotify.com": "/",
+    "accounts.spotify.com": "/login",
+    "open.spotify.com": "/",
+    "accounts.scdn.co": "/",
+    "gew1-dealer.spotify.com": "/",
+    "www-growth.scdn.co": "/",
+    "scdn.co": "/",
+    "www.scdn.co": "/",
+    "i.scdn.co": "/image/ab67616d00001e02ff9ca10b55ce82ae553c8228"
+  },
+  "core": [
+    "open.spotify.com",
+    "accounts.spotify.com",
+    "api.spotify.com",
+    "spclient.wg.spotify.com"
+  ],
+  "published": [
+    "48.102.233.174",
+    "217.60.179.6",
+    "31.58.216.201",
+    "37.221.93.128",
+    "37.221.93.141",
+    "5.175.161.3",
+    "5.175.161.40",
+    "45.13.237.213",
+    "143.20.64.192",
+    "31.25.239.132",
+    "193.233.112.67",
+    "159.194.200.33",
+    "193.233.112.68",
+    "193.233.112.88",
+    "192.255.159.240",
+    "192.255.159.241",
+    "107.175.76.134",
+    "192.3.233.253",
+    "143.20.64.55",
+    "217.60.245.219",
+    "217.60.245.233",
+    "2.27.118.34",
+    "103.27.157.38",
+    "45.155.204.190",
+    "37.230.192.51",
+    "77.239.114.0",
+    "95.182.120.241",
+    "204.12.192.222",
+    "134.0.118.88",
+    "185.246.223.127",
+    "185.87.51.182",
+    "142.54.189.109",
+    "63.141.252.206",
+    "46.8.158.6"
+  ],
+  "hostLists": {
+    "GeoHide EU": "https://raw.githubusercontent.com/Internet-Helper/GeoHideDNS/main/hosts/eu/hosts",
+    "GeoHide RU": "https://raw.githubusercontent.com/Internet-Helper/GeoHideDNS/main/hosts/hosts",
+    "GeoHide US": "https://raw.githubusercontent.com/Internet-Helper/GeoHideDNS/main/hosts/us/hosts",
+    "dns.malw.link hosts": "https://raw.githubusercontent.com/ImMALWARE/dns.malw.link/master/hosts",
+    "Zapret-Manager EU": "https://raw.githubusercontent.com/StressOzz/Zapret-Manager/main/files/GeoHide_hosts_EU",
+    "Zapret-Manager RU": "https://raw.githubusercontent.com/StressOzz/Zapret-Manager/main/files/GeoHide_hosts_RU",
+    "Zapret-Manager US": "https://raw.githubusercontent.com/StressOzz/Zapret-Manager/main/files/GeoHide_hosts_US",
+    "Zapret-Manager Malw": "https://raw.githubusercontent.com/StressOzz/Zapret-Manager/main/files/hosts_malw.link.txt"
+  },
+  "discussions": {
+    "GitHub #5552": "https://github.com/Flowseal/zapret-discord-youtube/discussions/5552",
+    "GitHub #12444": "https://github.com/Flowseal/zapret-discord-youtube/discussions/12444"
+  },
+  "smartDNS": [
+    "179.254.166.171",
+    "164.5.224.81"
+  ],
+  "doh": {
+    "Google Public DNS": [
+      "https://dns.google/resolve",
+      "8.8.8.8"
+    ],
+    "Cloudflare DNS": [
+      "https://cloudflare-dns.com/dns-query",
+      "1.1.1.1"
+    ]
+  },
+  "targetOrder": [
+    "spotify.com",
+    "www.spotify.com",
+    "api.spotify.com",
+    "login5.spotify.com",
+    "encore.scdn.co",
+    "gew1-spclient.spotify.com",
+    "spclient.wg.spotify.com",
+    "api-partner.spotify.com",
+    "aet.spotify.com",
+    "accounts.spotify.com",
+    "open.spotify.com",
+    "accounts.scdn.co",
+    "gew1-dealer.spotify.com",
+    "www-growth.scdn.co",
+    "scdn.co",
+    "www.scdn.co",
+    "i.scdn.co"
+  ]
+}
