@@ -24,7 +24,16 @@
     "api.spotify.com",
     "spclient.wg.spotify.com"
   ],
+  "priorityIPs": [
+    "161.104.89.59",
+    "45.198.0.84"
+  ],
   "published": [
+    "191.217.212.16",
+    "2.26.80.94",
+    "201.58.191.60",
+    "179.254.166.174",
+    "217.144.190.216",
     "48.102.233.174",
     "217.60.179.6",
     "31.58.216.201",
@@ -115,6 +124,15 @@
     ]
   },
   "wireDoH": {
+    "Bezmezhau DNS": ["https://dns.bezmezhau.com/dns-query", ""],
+    "Bezmezhau Sync": ["https://sync.bezmezhau.com/dns-query", ""],
+    "Zombiez DNS": ["https://dns.zombiez.ru/dns-query", ""],
+    "Common Network DNS": ["https://dns.commonnet.work/dns-query", ""],
+    "Dagami DNS": ["https://dns.dagami.ru/dns-query", ""],
+    "Wlrus DNS": ["https://dns.wlrus.cfd/dns-query", ""],
+    "Tamaev DNS": ["https://tamaev-gifts.xyz/dns-query", ""],
+    "MagicInfo DNS": ["https://api.magicinfo.art/dns-query", ""],
+    "QUIC Best DNS": ["https://w.quic.best/dns-query", ""],
     "Quad9 DNS": [
       "https://dns10.quad9.net/dns-query",
       "9.9.9.10"
@@ -127,6 +145,10 @@
       "https://5u35p8m9i7.cloudflare-gateway.com/dns-query",
       ""
     ]
+  },
+  "priorityDoH": {
+    "Zapret.moe DNS": ["https://dns.zapret.moe/dns-query", ""],
+    "Semqka DNS": ["https://dns.semqka.xyz/dns-query", ""]
   },
   "targetOrder": [
     "spotify.com",

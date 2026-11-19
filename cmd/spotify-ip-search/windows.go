@@ -8,6 +8,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math/bits"
 	"net/netip"
 	"os"
 	"os/exec"
@@ -48,7 +49,25 @@ func systemDNS(domain string) ([]string, error) {
 	return addresses, nil
 }
 
-func directSourceIPs() ([]string, error) {
+func defaultInterface() uint32 {
+	var index uint32
+	if err := windows.GetBestInterfaceEx(&windows.SockaddrInet4{Addr: [4]byte{1, 1, 1, 1}}, &index); err != nil {
+		return 0
+	}
+	return index
+}
+
+func bindInterface(raw syscall.RawConn, index uint32) error {
+	const ipUnicastInterface = 31
+	var socketError error
+	err := raw.Control(func(fd uintptr) {
+		// Winsock expects IP_UNICAST_IF in network byte order.
+		socketError = windows.SetsockoptInt(windows.Handle(fd), windows.IPPROTO_IP, ipUnicastInterface, int(bits.ReverseBytes32(index)))
+	})
+	return errors.Join(err, socketError)
+}
+
+func directInterfaces() ([]uint32, error) {
 	const includeGateways = 0x80
 	size := uint32(15_000)
 	for range 3 {
@@ -61,7 +80,7 @@ func directSourceIPs() ([]string, error) {
 		if err != nil {
 			return nil, err
 		}
-		var addresses []string
+		var interfaces []uint32
 		for current := adapter; current != nil; current = current.Next {
 			if current.OperStatus != windows.IfOperStatusUp || current.FirstGatewayAddress == nil {
 				continue
@@ -75,12 +94,13 @@ func directSourceIPs() ([]string, error) {
 			}
 			for address := current.FirstUnicastAddress; address != nil; address = address.Next {
 				if ip := address.Address.IP().To4(); ip != nil && !ip.IsLinkLocalUnicast() {
-					addresses = append(addresses, ip.String())
+					interfaces = append(interfaces, current.IfIndex)
+					break
 				}
 			}
 		}
 		runtime.KeepAlive(buffer)
-		return addresses, nil
+		return interfaces, nil
 	}
 	return nil, errors.New("список адаптеров изменился")
 }

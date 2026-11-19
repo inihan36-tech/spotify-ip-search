@@ -15,8 +15,9 @@ import (
 )
 
 const (
-	version          = "1.1.2"
+	version          = "1.1.3"
 	minApplyDomains  = 9
+	minQuickDomains  = 10
 	latestReleaseAPI = "https://api.github.com/repos/inihan36-tech/spotify-ip-search/releases/latest"
 	latestReleaseURL = "https://github.com/inihan36-tech/spotify-ip-search/releases/latest"
 )
@@ -25,10 +26,12 @@ type configuration struct {
 	Targets     map[string]string
 	TargetOrder []string
 	Core        []string
+	PriorityIPs []string
 	Published   []string
 	ReserveDNS  map[string][]string
 	SmartDNS    []string
 	DoH         map[string][2]string
+	PriorityDoH map[string][2]string
 	WireDoH     map[string][2]string
 	HostLists   map[string]string
 	Discussions map[string]string
@@ -69,7 +72,7 @@ func compareVersion(next, current string) bool {
 }
 
 func checkForUpdate() {
-	res, err := request(latestReleaseAPI, "", "", 3*time.Second, 256_000, "application/vnd.github+json")
+	res, err := request(latestReleaseAPI, "", 0, 3*time.Second, 256_000, "application/vnd.github+json")
 	if err != nil || res.status != 200 {
 		return
 	}
@@ -81,26 +84,30 @@ func checkForUpdate() {
 	}
 }
 
-func (options searchOptions) chooseRoute() (string, error) {
+func (options searchOptions) chooseRoute() (uint32, error) {
 	control := pair{"1.1.1.1", "open.spotify.com"}
 	// If a control IP serves Spotify, the tunnel ignored the requested destination.
-	if !probe(control, "", 3*time.Second, false).ok {
-		return "", nil
+	redirected := probe(control, 0, 2*time.Second, false).ok
+	interfaces, err := directInterfaces()
+	if !redirected && (err != nil || len(interfaces) == 0 || slices.Contains(interfaces, defaultInterface())) {
+		return 0, nil
 	}
 	if options.verbose {
-		fmt.Println("Туннель перенаправляет HTTPS. Ищу прямое подключение…")
+		fmt.Println("Проверяю прямое подключение через сетевой адаптер…")
 	}
-	addresses, err := directSourceIPs()
 	if err != nil {
-		return "", err
+		return 0, err
 	}
-	for _, address := range addresses {
-		if !probe(control, address, 3*time.Second, false).ok {
+	for _, index := range interfaces {
+		if !probe(control, index, 2*time.Second, false).ok {
 			fmt.Println("Маршрут   · прямое подключение")
-			return address, nil
+			return index, nil
 		}
 	}
-	return "", errors.New("не удалось подтвердить маршрут проверки. Отключите режим TUN и повторите запуск")
+	if !redirected {
+		return 0, nil
+	}
+	return 0, errors.New("не удалось подтвердить маршрут проверки. Отключите режим TUN и повторите запуск")
 }
 
 func (options searchOptions) find(dnsOnly bool) results {
@@ -119,8 +126,21 @@ func (options searchOptions) find(dnsOnly bool) results {
 		go fetch(discussions, config.Discussions, discussionIPs)
 	}
 	checked := results{}
+	fmt.Println("Поиск     · SmartDNS…")
+	priority := options.dnsCandidates(true)
+	if !dnsOnly {
+		for ip, domains := range options.publishedCandidates(config.PriorityIPs) {
+			priority[ip] = domains
+		}
+	}
+	fmt.Printf("Проверка  · приоритетных адресов: %d\n", len(priority))
+	options.scan(priority, checked)
+	if options.confirm(checked) {
+		return checked
+	}
+
 	fmt.Println("Поиск     · DNS…")
-	found := options.dnsCandidates()
+	found := options.dnsCandidates(false)
 	fmt.Printf("Проверка  · адресов из DNS: %d\n", len(found))
 	options.scan(found, checked)
 	if options.confirm(checked) || dnsOnly {
@@ -260,7 +280,7 @@ func run(args []string) int {
 		fmt.Printf("Маршрут   · %v\n", err)
 		return 2
 	}
-	options.sourceIP = source
+	options.interfaceIndex = source
 	var checked results
 	if ip != "" {
 		fmt.Printf("Проверка  · %s на %d доменах…\n", ip, len(targetDomains))

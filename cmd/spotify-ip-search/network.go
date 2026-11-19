@@ -15,6 +15,7 @@ import (
 	"net/netip"
 	"net/url"
 	"strings"
+	"syscall"
 	"time"
 
 	"golang.org/x/net/dns/dnsmessage"
@@ -47,15 +48,17 @@ type response struct {
 	body     []byte
 }
 
-func dialer(sourceIP string, timeout time.Duration) net.Dialer {
+func dialer(interfaceIndex uint32, timeout time.Duration) net.Dialer {
 	dial := net.Dialer{Timeout: min(timeout, 4*time.Second)}
-	if sourceIP != "" {
-		dial.LocalAddr = &net.TCPAddr{IP: net.ParseIP(sourceIP)}
+	if interfaceIndex != 0 {
+		dial.Control = func(_, _ string, raw syscall.RawConn) error {
+			return bindInterface(raw, interfaceIndex)
+		}
 	}
 	return dial
 }
 
-func request(rawURL, pinnedIP, sourceIP string, timeout time.Duration, limit int64, accept string) (response, error) {
+func request(rawURL, pinnedIP string, interfaceIndex uint32, timeout time.Duration, limit int64, accept string) (response, error) {
 	req, err := http.NewRequest(http.MethodGet, rawURL, nil)
 	if err != nil {
 		return response{}, err
@@ -67,7 +70,7 @@ func request(rawURL, pinnedIP, sourceIP string, timeout time.Duration, limit int
 	if accept != "" {
 		req.Header.Set("Accept", accept)
 	}
-	dial := dialer(sourceIP, timeout)
+	dial := dialer(interfaceIndex, timeout)
 	transport := &http.Transport{
 		DialContext: func(ctx context.Context, _, address string) (net.Conn, error) {
 			if pinnedIP != "" {
@@ -159,14 +162,14 @@ type probeResult struct {
 	elapsed  time.Duration
 }
 
-func probe(candidate pair, sourceIP string, timeout time.Duration, retry bool) probeResult {
+func probe(candidate pair, interfaceIndex uint32, timeout time.Duration, retry bool) probeResult {
 	address := "https://" + candidate.domain + config.Targets[candidate.domain]
 	start := time.Now()
 	for range 3 {
-		res, err := request(address, candidate.ip, sourceIP, timeout, 4_000_000, "")
+		res, err := request(address, candidate.ip, interfaceIndex, timeout, 4_000_000, "")
 		if retry && isTimeout(err) {
 			retry = false
-			res, err = request(address, candidate.ip, sourceIP, timeout, 4_000_000, "")
+			res, err = request(address, candidate.ip, interfaceIndex, timeout, 4_000_000, "")
 		}
 		if err != nil {
 			return probeResult{pair: candidate, reason: err.Error(), timedOut: isTimeout(err)}
@@ -182,10 +185,10 @@ func probe(candidate pair, sourceIP string, timeout time.Duration, retry bool) p
 	return probeResult{pair: candidate, reason: "слишком много перенаправлений"}
 }
 
-func smartDNS(domain, sourceIP string) ([]string, error) {
+func smartDNS(domain string, interfaceIndex uint32) ([]string, error) {
 	var lastErr error
 	for _, server := range config.SmartDNS {
-		addresses, err := queryTLS(domain, server, sourceIP)
+		addresses, err := queryTLS(domain, server, interfaceIndex)
 		if err == nil && len(addresses) > 0 {
 			return addresses, nil
 		}
@@ -194,14 +197,14 @@ func smartDNS(domain, sourceIP string) ([]string, error) {
 	return nil, lastErr
 }
 
-func queryTLS(domain, server, sourceIP string) ([]string, error) {
+func queryTLS(domain, server string, interfaceIndex uint32) ([]string, error) {
 	const timeout = 4 * time.Second
 	message := dnsQuery(domain, 0x5350)
 	query, err := message.Pack()
 	if err != nil {
 		return nil, err
 	}
-	dial := dialer(sourceIP, timeout)
+	dial := dialer(interfaceIndex, timeout)
 	connection, err := tls.DialWithDialer(&dial, "tcp4", net.JoinHostPort(server, "853"),
 		&tls.Config{ServerName: "dns.malw.link"})
 	if err != nil {
@@ -253,13 +256,13 @@ func dnsReply(message dnsmessage.Message, answer []byte) ([]string, error) {
 	return addresses, nil
 }
 
-func queryWireDoH(domain, sourceIP string, endpoint [2]string) ([]string, error) {
+func queryWireDoH(domain string, interfaceIndex uint32, endpoint [2]string) ([]string, error) {
 	message := dnsQuery(domain, 0)
 	query, err := message.Pack()
 	if err != nil {
 		return nil, err
 	}
-	res, err := request(endpoint[0]+"?dns="+base64.RawURLEncoding.EncodeToString(query), endpoint[1], sourceIP,
+	res, err := request(endpoint[0]+"?dns="+base64.RawURLEncoding.EncodeToString(query), endpoint[1], interfaceIndex,
 		3*time.Second, 64_000, "application/dns-message")
 	if err != nil {
 		return nil, err
@@ -270,8 +273,8 @@ func queryWireDoH(domain, sourceIP string, endpoint [2]string) ([]string, error)
 	return dnsReply(message, res.body)
 }
 
-func queryDoH(domain, sourceIP string, endpoint [2]string) ([]string, error) {
-	res, err := request(endpoint[0]+"?name="+url.QueryEscape(domain)+"&type=A", endpoint[1], sourceIP,
+func queryDoH(domain string, interfaceIndex uint32, endpoint [2]string) ([]string, error) {
+	res, err := request(endpoint[0]+"?name="+url.QueryEscape(domain)+"&type=A", endpoint[1], interfaceIndex,
 		4*time.Second, 64_000, "application/dns-json")
 	if err != nil {
 		return nil, err

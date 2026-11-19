@@ -12,7 +12,7 @@ import (
 	"time"
 )
 
-const workers, maxSourceIPs = 16, 128
+const workers, maxSourceIPs = 24, 128
 
 type candidates map[string]map[string]bool
 type results map[pair]probeResult
@@ -35,10 +35,10 @@ func parallel[In, Out any](inputs []In, run func(In) Out) []Out {
 }
 
 type searchOptions struct {
-	sourceIP string
-	timeout  time.Duration
-	verbose  bool
-	excluded map[string]bool
+	interfaceIndex uint32
+	timeout        time.Duration
+	verbose        bool
+	excluded       map[string]bool
 }
 
 type dnsJob struct {
@@ -58,21 +58,28 @@ func localLookup(domain string) ([]string, error) {
 	return addresses, err
 }
 
-func (options searchOptions) dnsCandidates() candidates {
+func (options searchOptions) dnsCandidates(priority bool) candidates {
+	wire := config.WireDoH
+	if priority {
+		wire = config.PriorityDoH
+	}
 	var jobs []dnsJob
 	for _, domain := range append(slices.Clone(config.Core), "i.scdn.co") {
+		for name, endpoint := range wire {
+			jobs = append(jobs, dnsJob{domain, name, func(domain string) ([]string, error) {
+				return queryWireDoH(domain, options.interfaceIndex, endpoint)
+			}, !priority})
+		}
+		if priority {
+			continue
+		}
 		jobs = append(jobs,
 			dnsJob{domain, "Системный DNS", systemDNS, false},
 			dnsJob{domain, "Локальное разрешение", localLookup, false},
-			dnsJob{domain, "SmartDNS dns.malw.link", func(domain string) ([]string, error) { return smartDNS(domain, options.sourceIP) }, false})
+			dnsJob{domain, "SmartDNS dns.malw.link", func(domain string) ([]string, error) { return smartDNS(domain, options.interfaceIndex) }, false})
 		for name, endpoint := range config.DoH {
 			jobs = append(jobs, dnsJob{domain, name, func(domain string) ([]string, error) {
-				return queryDoH(domain, options.sourceIP, endpoint)
-			}, true})
-		}
-		for name, endpoint := range config.WireDoH {
-			jobs = append(jobs, dnsJob{domain, name, func(domain string) ([]string, error) {
-				return queryWireDoH(domain, options.sourceIP, endpoint)
+				return queryDoH(domain, options.interfaceIndex, endpoint)
 			}, true})
 		}
 	}
@@ -112,7 +119,7 @@ func (options searchOptions) dnsCandidates() candidates {
 
 func (options searchOptions) check(jobs []pair, retry bool) []probeResult {
 	checks := parallel(jobs, func(candidate pair) probeResult {
-		return probe(candidate, options.sourceIP, options.timeout, retry)
+		return probe(candidate, options.interfaceIndex, options.timeout, retry)
 	})
 	if options.verbose {
 		for _, check := range checks {
@@ -211,11 +218,19 @@ func bestIP(checked results) winner {
 func (options searchOptions) confirm(checked results) bool {
 	for {
 		best := bestIP(checked)
-		if len(best.domains) != len(targetDomains) {
+		if len(best.domains) < minQuickDomains {
 			return false
 		}
+		for _, domain := range config.Core {
+			if !slices.Contains(best.domains, domain) {
+				return false
+			}
+		}
 		fmt.Printf("Проверка  · повторно проверяю %s…\n", best.ip)
-		jobs := allPairs(best.ip)
+		jobs := make([]pair, 0, len(best.domains))
+		for _, domain := range best.domains {
+			jobs = append(jobs, pair{best.ip, domain})
+		}
 		passed := true
 		for _, check := range options.check(jobs, false) {
 			if !check.ok {
@@ -324,9 +339,9 @@ func (options searchOptions) onlineCandidates(sources map[string]string, parse f
 	}
 	answers := parallel(jobs, func(item source) answer {
 		const timeout = 10 * time.Second
-		res, err := request(item.link, "", "", timeout, 8_000_000, "")
+		res, err := request(item.link, "", 0, timeout, 8_000_000, "")
 		if isTimeout(err) {
-			res, err = request(item.link, "", "", timeout, 8_000_000, "")
+			res, err = request(item.link, "", 0, timeout, 8_000_000, "")
 		}
 		if err != nil {
 			return answer{err: err}
